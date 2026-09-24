@@ -1,0 +1,40 @@
+name: Live 24/7 University Post Monitor (Every 5 mins)
+
+on:
+  schedule:
+    # يعمل تلقائياً كل 5 دقائق على مدار الساعة 24/7
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # يتيح لك فحص واختبار السحابة يدوياً بضغطة زر
+
+jobs:
+  monitor_and_alert:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Check for New Posts
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          python main.py
+
+      - name: Save Seen Posts History
+        run: |
+          git config --global user.name "GitHub Actions Monitor"
+          git config --global user.email "actions@github.com"
+          git add seen_posts.json || true
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto: Update seen posts record [skip ci]" && git push)
